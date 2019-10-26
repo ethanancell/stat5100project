@@ -1,9 +1,9 @@
-proc import datafile='/folders/myfolders/EPG194/project/crimeanalysis/crime_by_district_rt.csv' replace
-	out = work.crimes
+proc import datafile='/folders/myfolders/EPG194/stat5100project/kc_house_data.csv' replace
+	out = house
 	dbms = CSV
 	;
 run;
 
-proc reg data=work.crimes;
-	model Murder = Assault_on_women Prevention_of_atrocities__POA__A Protection_of_Civil_Rights__PCR_  Kidnapping_and_Abduction Dacoity Robbery Arson Hurt;
+proc reg data=house plots(maxpoints=220000 label)=(CooksD RStudentByLeverage DFFITS DFBETAS);
+	model price = bedrooms bathrooms sqft_living sqft_lot waterfront yr_built;
 run;
