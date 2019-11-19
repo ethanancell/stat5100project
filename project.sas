@@ -4,6 +4,11 @@ proc import datafile='/folders/myfolders/EPG194/stat5100project/kc_house_data.cs
 	;
 run;
 
+/* What does the data look like before the transformation? */
+proc reg data=house plots(maxpoints=22000);
+	model price = bedrooms bathrooms sqft_living sqft_lot waterfront yr_built grade;
+run;
+
 /* Box-cox transformation. Ends up suggesting the log transform.*/
 proc transreg data=house;
 	model boxcox(price / lambda=-1 to 1 by 0.1) = identity(bedrooms bathrooms sqft_living sqft_lot waterfront yr_built grade);
@@ -13,6 +18,7 @@ run;
 /* Fixed model violations with log transform */
 data house; set house;
 	logPrice = log(price);
+	order = _n_;
 run;
 proc reg data=house plots(maxpoints=22000);
 	model logPrice = bedrooms bathrooms sqft_living sqft_lot waterfront yr_built grade;
@@ -25,6 +31,6 @@ run;
 
 /* Ignore those influential observations */
 proc reg data=house plots(maxpoints=220000 label)=(CooksD RStudentByLeverage DFFITS DFBETAS);
-	where _n_ NE 1720 and _n_ NE 12778 and _n_ NE 15871;
+	where order NE 1720 and order NE 15871;
 	model logPrice = bedrooms bathrooms sqft_living sqft_lot waterfront yr_built grade / vif collin;
 run;
