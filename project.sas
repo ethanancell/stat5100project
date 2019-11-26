@@ -94,3 +94,105 @@ proc reg data=house_out2;
 	model logPrice = bedrooms bathrooms sqft_living logSqftLot waterfront yr_built grade yrBuiltSqftLiving waterfrontLogSqftLot;
 	weight useWeight;
 run;
+
+
+
+
+
+
+
+/* Comparison - Can be ran independently of above code. */
+proc import datafile='/folders/myfolders/EPG194/stat5100project/kc_house_data.csv' replace
+	out = house
+	dbms = CSV
+	;
+run;
+
+/* Remove the influential observations. */
+data house;
+	set house;
+	if id NE 2402100895 and id NE 5315100874;
+run;
+
+/* Get MSPR for the original model and weighted model */
+data house;
+	set house;
+	rand = ranuni(12);
+run;
+proc sort data=house;
+	by rand;
+run;
+
+/* Transformations */
+data house;
+	set house;
+	order=_n_;
+	logPrice = log(price);
+	logSqftLot = log(sqft_lot);
+	waterfrontLogSqftLot = logSqftLot * waterfront;
+	yrBuiltSqftLiving = yr_built * sqft_living;
+run;
+
+data train;
+	set house;
+	where order < 14000;
+run;
+
+data test;
+	set house;
+	where order GE 14000;
+run;
+
+data train;
+	set train;
+	train_logPrice = logPrice;
+run;
+
+data combine;
+	set train test;
+run;
+
+/* Try OLS */
+proc reg data=combine;
+	model train_logPrice = bedrooms bathrooms sqft_living logSqftLot waterfront yr_built grade yrBuiltSqftLiving waterfrontLogSqftLot;
+	output out = house_out r=resid p=pred;
+run;
+
+/* Try WLS */
+data house_out2; set house_out;
+	abs_resid = abs(resid);
+run;
+proc reg data=house_out2 noprint;
+	model abs_resid = bedrooms bathrooms sqft_living logSqftLot waterfront yr_built grade yrBuiltSqftLiving waterfrontLogSqftLot;
+	output out=house_out3 p=estSD;
+run;
+data house_out3; set house_out3;
+	useWeight = 1/estSD**2;
+run;
+proc reg data=house_out3;
+	model logPrice = bedrooms bathrooms sqft_living logSqftLot waterfront yr_built grade yrBuiltSqftLiving waterfrontLogSqftLot;
+	weight useWeight;
+	output out=house_out4 r=resid p=pred2;
+run;
+
+/* Compare the two */
+/* OLS */
+data compareOLS;
+	set house_out;
+	where train_logPrice=.;
+	serr = (exp(pred) - price)**2;
+run;
+proc means data=compareOLS;
+	var serr;
+	title1 ''
+run;
+
+/* WLS */
+data compareWLS;
+	set house_out4;
+	where train_logPrice=.;
+	serr2 = (exp(pred2) - price)**2;
+run;
+proc means data=compareWLS;
+	var serr2;
+run;
